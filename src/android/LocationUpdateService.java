@@ -71,6 +71,7 @@ public class LocationUpdateService extends Service implements LocationListener {
     private long lastUpdateTime = 0l;
 
     private JSONObject params;
+    private JSONObject jsonFieldsMap;
     private JSONObject headers;
     private String url = "http://192.168.2.15:3000/users/current_location.json";
 
@@ -166,6 +167,7 @@ public class LocationUpdateService extends Service implements LocationListener {
         if (intent != null) {
             try {
                 params = new JSONObject(intent.getStringExtra("params"));
+                jsonFieldsMap = new JSONObject(intent.getStringExtra("jsonFieldsMap"));
                 headers = new JSONObject(intent.getStringExtra("headers"));
             } catch (JSONException e) {
                 // TODO Auto-generated catch block
@@ -202,6 +204,7 @@ public class LocationUpdateService extends Service implements LocationListener {
         }
         Log.i(TAG, "- url: " + url);
         Log.i(TAG, "- params: " + params.toString());
+        Log.i(TAG, "- jsonFieldsMap: " + jsonFieldsMap.toString());
         Log.i(TAG, "- headers: " + headers.toString());
         Log.i(TAG, "- stationaryRadius: "   + stationaryRadius);
         Log.i(TAG, "- distanceFilter: "     + distanceFilter);
@@ -670,22 +673,50 @@ public class LocationUpdateService extends Service implements LocationListener {
             location.put("bearing", l.getBearing());
             location.put("altitude", l.getAltitude());
             location.put("recorded_at", dao.dateToString(l.getRecordedAt()));
-            params.put("location", location);
+
+            // use the custom json fields if "jsonFieldsMap" is defined
+            if (jsonFieldsMap.keys().hasNext()) {
+                JSONObject customLocation = new JSONObject();
+                Iterator<String> customFieldNamesIt = jsonFieldsMap.keys();
+                while(customFieldNamesIt.hasNext()){
+                    String customFieldName = customFieldNamesIt.next();
+                    String relatedFieldName = jsonFieldsMap.getString(customFieldName);
+                    if(relatedFieldName != null) {
+                        Object relatedFieldValue = location.get(relatedFieldName);
+                        customLocation.put(customFieldName, relatedFieldValue);
+                    } else {
+                        Log.w(TAG, "Failed to retrieve the location attribute '" + relatedFieldName + "'");
+                    }
+                }
+                location = customLocation;
+            }
 
             Log.i(TAG, "location: " + location.toString());
 
-            StringEntity se = new StringEntity(params.toString());
+
+            final StringEntity se;
+            // use the params if "params" is defined and therefore also put the location field
+            if (params.keys().hasNext()) {
+                params.put("location", location);
+                se = new StringEntity(params.toString());
+            } else {
+                se = new StringEntity(location.toString());
+            }
+
             request.setEntity(se);
             request.setHeader("Accept", "application/json");
             request.setHeader("Content-type", "application/json");
 
-            Iterator<String> headkeys = headers.keys();
-            while( headkeys.hasNext() ){
-        String headkey = headkeys.next();
-        if(headkey != null) {
-                    Log.d(TAG, "Adding Header: " + headkey + " : " + (String)headers.getString(headkey));
-                    request.setHeader(headkey, (String)headers.getString(headkey));
-        }
+            // append the custom headers if "headers" is defined
+            if (headers.keys().hasNext()) {
+                Iterator<String> headkeys = headers.keys();
+                while(headkeys.hasNext()){
+                    String headkey = headkeys.next();
+                    if(headkey != null) {
+                        Log.d(TAG, "Adding Header: " + headkey + " : " + (String)headers.getString(headkey));
+                        request.setHeader(headkey, (String)headers.getString(headkey));
+                    }
+                }
             }
             Log.d(TAG, "Posting to " + request.getURI().toString());
             HttpResponse response = httpClient.execute(request);

@@ -26,6 +26,7 @@ public class BackgroundGpsPlugin extends CordovaPlugin {
     private String url;
     private String params;
     private String headers;
+    private String jsonFieldsMap;
     private String stationaryRadius = "30";
     private String desiredAccuracy = "100";
     private String distanceFilter = "30";
@@ -42,7 +43,7 @@ public class BackgroundGpsPlugin extends CordovaPlugin {
 
         if (ACTION_START.equalsIgnoreCase(action) && !isEnabled) {
             result = true;
-            if (params == null || headers == null || url == null) {
+            if (params == null || headers == null || url == null || jsonFieldsMap == null) {
                 callbackContext.error("Call configure before calling start");
             } else {
                 callbackContext.success();
@@ -58,6 +59,7 @@ public class BackgroundGpsPlugin extends CordovaPlugin {
                 updateServiceIntent.putExtra("notificationTitle", notificationTitle);
                 updateServiceIntent.putExtra("notificationText", notificationText);
                 updateServiceIntent.putExtra("stopOnTerminate", stopOnTerminate);
+                updateServiceIntent.putExtra("jsonFieldsMap", jsonFieldsMap);
 
                 activity.startService(updateServiceIntent);
                 isEnabled = true;
@@ -71,8 +73,8 @@ public class BackgroundGpsPlugin extends CordovaPlugin {
             result = true;
             try {
                 // Params.
-                //    0       1       2           3               4                5               6            7           8                9               10              11
-                //[params, headers, url, stationaryRadius, distanceFilter, locationTimeout, desiredAccuracy, debug, notificationTitle, notificationText, activityType, stopOnTerminate]
+                //    0       1       2           3               4                5               6            7           8                9               10              11              12
+                //[params, headers, url, stationaryRadius, distanceFilter, locationTimeout, desiredAccuracy, debug, notificationTitle, notificationText, activityType, stopOnTerminate, jsonFieldsMap]
                 this.params = data.getString(0);
                 this.headers = data.getString(1);
                 this.url = data.getString(2);
@@ -84,6 +86,7 @@ public class BackgroundGpsPlugin extends CordovaPlugin {
                 this.notificationTitle = data.getString(8);
                 this.notificationText = data.getString(9);
                 this.stopOnTerminate = data.getString(11);
+                this.jsonFieldsMap = data.getString(12);
             } catch (JSONException e) {
                 callbackContext.error("authToken/url required as parameters: " + e.getMessage());
             }
